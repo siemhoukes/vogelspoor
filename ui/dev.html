@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<title>Vogelspoor (dev-preview)</title>
+<link rel="stylesheet" href="leaflet/leaflet.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <svg class="bird" viewBox="0 0 64 40" aria-hidden="true">
+    <path d="M2 26 C14 10 26 8 34 14 C38 6 50 2 62 6 C52 8 46 12 43 18 C48 20 52 24 53 30 C47 25 41 23 36 24 C32 32 24 37 14 36 C20 33 24 29 25 24 C17 21 9 22 2 26 Z"/>
+  </svg>
+  <div class="title">
+    <h1>Vogelspoor</h1>
+    <p>de GPS van je track, in je foto&rsquo;s</p>
+  </div>
+  <button id="btn-reset" class="ghost" title="Alles wissen en opnieuw beginnen">Opnieuw</button>
+</header>
+
+<main>
+  <section id="left">
+
+    <div class="drop-row">
+      <div class="drop-card" id="drop-gpx">
+        <svg viewBox="0 0 24 24" class="icon"><path d="M4 19 C7 13 9 9 12 9 C15 9 14 15 17 15 C19 15 20 12 21 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="4" cy="19" r="2.2"/><circle cx="21" cy="8" r="2.2"/></svg>
+        <div class="drop-text">
+          <strong id="gpx-title">GPX-track</strong>
+          <span id="gpx-sub">sleep hierheen of klik</span>
+        </div>
+      </div>
+      <div class="drop-card" id="drop-photos">
+        <svg viewBox="0 0 24 24" class="icon"><rect x="2.5" y="6" width="19" height="14" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 6 L9.5 3.5 H14.5 L16 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="13" r="4" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+        <div class="drop-text">
+          <strong id="photos-title">Foto&rsquo;s</strong>
+          <span id="photos-sub">sleep hierheen of klik &middot; <a id="pick-folder" href="#">hele map</a></span>
+        </div>
+      </div>
+    </div>
+
+    <div id="offset-box" class="panel hidden">
+      <div class="panel-title">Tijdcorrectie camera
+        <span class="hint" title="Loopt de klok van je camera voor of achter? Corrigeer dat hier. De correctie wordt bij de fototijd opgeteld.">?</span>
+      </div>
+      <div class="offset-controls">
+        <button data-off="-86400">&minus;1 d</button>
+        <button data-off="-3600">&minus;1 u</button>
+        <button data-off="-60">&minus;1 m</button>
+        <button data-off="-10">&minus;10 s</button>
+        <span id="offset-value">0:00:00</span>
+        <button data-off="10">+10 s</button>
+        <button data-off="60">+1 m</button>
+        <button data-off="3600">+1 u</button>
+        <button data-off="86400">+1 d</button>
+        <button id="offset-reset" class="ghost" title="Terug naar nul">reset</button>
+      </div>
+      <div id="suggestion" class="suggestion hidden">
+        <span id="suggestion-text"></span>
+        <button id="suggestion-apply">pas toe</button>
+      </div>
+    </div>
+
+    <div id="summary" class="summary hidden"></div>
+
+    <div id="select-bar" class="select-bar hidden">
+      <span id="select-count"></span>
+      <button id="btn-shift">&#128336; Tijd aanpassen</button>
+      <button id="btn-pin">&#128204; Prik op de kaart</button>
+      <button id="btn-clear-sel" class="ghost">wis</button>
+    </div>
+
+    <div id="shift-box" class="panel hidden">
+      <div class="panel-title">Opnametijd verschuiven van <span id="shift-count"></span> foto&rsquo;s
+        <span class="hint" title="Stond de datum of tijd van je camera verkeerd? Dit corrigeert de EXIF-tijd in de fotobestanden zelf. Negatieve waarden schuiven terug.">?</span>
+      </div>
+      <div class="shift-controls">
+        <label>dagen <input type="number" id="sh-d" value="0"></label>
+        <label>uren <input type="number" id="sh-h" value="0"></label>
+        <label>minuten <input type="number" id="sh-m" value="0"></label>
+        <label>seconden <input type="number" id="sh-s" value="0"></label>
+      </div>
+      <div class="shift-preview" id="shift-preview"></div>
+      <div class="shift-actions">
+        <button id="shift-apply" class="primary small">Pas aan</button>
+        <button id="shift-cancel" class="ghost">annuleer</button>
+      </div>
+    </div>
+
+    <div id="list-tools" class="list-tools hidden">
+      <a id="sel-all" href="#">alles selecteren</a> &middot; <a id="sel-none" href="#">niets selecteren</a>
+    </div>
+
+    <ul id="photo-list"></ul>
+
+    <div id="write-box" class="panel hidden">
+      <label class="check"><input type="checkbox" id="skip-existing" checked>
+        foto&rsquo;s die al GPS hebben overslaan</label>
+      <label class="check"><input type="checkbox" id="make-backup" checked>
+        eerst een backup maken (map &lsquo;vogelspoor-backup&rsquo; naast je foto&rsquo;s)</label>
+      <button id="btn-write" class="primary" disabled>Schrijf GPS naar foto&rsquo;s</button>
+      <div id="write-result" class="hidden"></div>
+    </div>
+
+  </section>
+
+  <section id="right">
+    <div id="map"></div>
+    <div id="map-empty">
+      <p>Laad een GPX-track of foto&rsquo;s om de kaart te zien</p>
+    </div>
+    <div id="pin-hint" class="hidden"></div>
+  </section>
+</main>
+
+<div id="drop-overlay" class="hidden"><div>Laat maar los!</div></div>
+<div id="busy" class="hidden"><div class="spinner"></div><span id="busy-text">Bezig&hellip;</span></div>
+
+<script>
+/* ------- mock pywebview-api met voorbeelddata, alleen voor de dev-preview ------- */
+(function () {
+  // rondwandeling door een polder bij 52.32, 4.98
+  const t0 = Date.UTC(2026, 6, 12, 5, 40, 0) / 1000; // 07:40 lokale zomertijd
+  const N = 240;
+  const latlngs = [], times = [];
+  for (let i = 0; i < N; i++) {
+    const a = (i / N) * 2 * Math.PI;
+    latlngs.push([
+      52.3200 + 0.0090 * Math.sin(a) + 0.0012 * Math.sin(5 * a),
+      4.9800 + 0.0140 * Math.cos(a) + 0.0018 * Math.sin(3 * a),
+    ]);
+    times.push(t0 + i * 45); // 3 uur wandelen
+  }
+
+  function svgThumb(hue) {
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='44' height='44'>
+      <rect width='44' height='44' fill='hsl(${hue},35%,72%)'/>
+      <path d='M8 30 C16 18 26 16 36 22 L36 36 L8 36 Z' fill='hsl(${hue},40%,45%)'/>
+      <circle cx='31' cy='12' r='5' fill='hsl(45,80%,80%)'/></svg>`;
+    return "data:image/svg+xml," + encodeURIComponent(svg);
+  }
+
+  function fmtLocal(t) {
+    const d = new Date(t * 1000);
+    const p = (n) => String(n).padStart(2, "0");
+    return `${p(d.getDate())}-${p(d.getMonth() + 1)}-${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+  }
+
+  const photos = [
+    { off: 600,   name: "DSC04211.JPG", gps: false },
+    { off: 1800,  name: "DSC04212.JPG", gps: false },
+    { off: 2650,  name: "DSC04215.JPG", gps: false },
+    { off: 4200,  name: "DSC04221.JPG", gps: true  },
+    { off: 6100,  name: "DSC04230.JPG", gps: false },
+    { off: 8300,  name: "DSC04233.JPG", gps: false },
+    { off: 10620, name: "DSC04238.JPG", gps: false },
+    { off: 11100, name: "DSC04240.ARW", gps: false },
+    { off: -400,  name: "DSC04201.JPG", gps: false },   // net voor de start -> rand
+    { off: 15800, name: "DSC04250.JPG", gps: false },   // ver na de track -> erbuiten
+    { off: null,  name: "scan-0034.tif", gps: false },  // geen EXIF-tijd
+  ].map((p, i) => ({
+    path: "C:\\Foto's\\2026-07-12 Waterland\\" + p.name,
+    name: p.name,
+    t_utc: p.off === null ? null : t0 + p.off,
+    time_str: p.off === null ? "" : fmtLocal(t0 + p.off),
+    time_error: p.off === null ? "geen opnametijd in EXIF" : null,
+    has_gps: p.gps,
+    model: "ILCE-6400",
+    thumb: p.off === null ? null : svgThumb((i * 47) % 360),
+  }));
+
+  const track = {
+    path: "C:\\Downloads\\Ochtendwandeling_Waterland.gpx",
+    name: "Ochtendwandeling_Waterland.gpx",
+    n_points: N,
+    start_local: fmtLocal(times[0]),
+    end_local: fmtLocal(times[N - 1]),
+    latlngs,
+  };
+
+  function locate(t) {
+    if (t == null) return null;
+    if (t < times[0] - 600 || t > times[N - 1] + 600) return null;
+    if (t <= times[0]) return { ll: latlngs[0], gap: times[0] - t };
+    if (t >= times[N - 1]) return { ll: latlngs[N - 1], gap: t - times[N - 1] };
+    const i = Math.min(N - 1, Math.max(1, Math.floor((t - t0) / 45) + 1));
+    const f = (t - times[i - 1]) / (times[i] - times[i - 1]);
+    return {
+      ll: [
+        latlngs[i - 1][0] + f * (latlngs[i][0] - latlngs[i - 1][0]),
+        latlngs[i - 1][1] + f * (latlngs[i][1] - latlngs[i - 1][1]),
+      ],
+      gap: 0,
+    };
+  }
+
+  const st = { track: null, photos: [] };
+  const stateResp = () => Promise.resolve(JSON.parse(JSON.stringify(st)));
+
+  window.pywebview = {
+    api: {
+      state: stateResp,
+      reset: () => { st.track = null; st.photos = []; return stateResp(); },
+      pick_gpx: () => { st.track = track; return stateResp(); },
+      pick_photos: () => { st.photos = photos; return stateResp(); },
+      pick_folder: () => { st.photos = photos; return stateResp(); },
+      add_paths: () => { st.track = track; st.photos = photos; return stateResp(); },
+      match: (offset) =>
+        Promise.resolve({
+          results: st.photos.map((ph) => {
+            if (ph.t_utc == null) return { path: ph.path, status: "no_time" };
+            const loc = locate(ph.t_utc + offset);
+            if (!loc) return { path: ph.path, status: "outside" };
+            return {
+              path: ph.path,
+              status: loc.gap > 0 ? "edge" : "ok",
+              lat: loc.ll[0], lon: loc.ll[1], ele: 1.2,
+              gap_s: Math.round(loc.gap),
+            };
+          }),
+          suggestion: offset === 0 ? null : null,
+        }),
+      shift_time: (paths, shiftS, backup) =>
+        new Promise((res) =>
+          setTimeout(() => {
+            st.photos.forEach((ph) => {
+              if (paths.includes(ph.path) && ph.t_utc != null) {
+                ph.t_utc += shiftS;
+                ph.time_str = fmtLocal(ph.t_utc);
+              }
+            });
+            res({
+              state: JSON.parse(JSON.stringify(st)),
+              shifted: paths.length, failed: [],
+              backup_dirs: backup ? ["C:\\Foto's\\2026-07-12 Waterland\\vogelspoor-backup"] : [],
+            });
+          }, 400)),
+      write: (offset, skip, backup, manual) =>
+        new Promise((res) =>
+          setTimeout(() => {
+            st.photos.forEach((ph) => { if (ph.t_utc && locate(ph.t_utc + offset)) ph.has_gps = true; });
+            res({
+              written: 8, failed: [{ name: "DSC04240.ARW", error: "testfout" }],
+              skipped_existing: skip ? 1 : 0, no_match: 2,
+              backup_dirs: backup ? ["C:\\Foto's\\2026-07-12 Waterland\\vogelspoor-backup"] : [],
+            });
+          }, 600)),
+    },
+  };
+})();
+</script>
+<script src="leaflet/leaflet.js"></script>
+<script src="main.js"></script>
+</body>
+</html>

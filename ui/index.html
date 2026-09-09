@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<title>Vogelspoor</title>
+<link rel="stylesheet" href="leaflet/leaflet.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <svg class="bird" viewBox="0 0 64 40" aria-hidden="true">
+    <path d="M2 26 C14 10 26 8 34 14 C38 6 50 2 62 6 C52 8 46 12 43 18 C48 20 52 24 53 30 C47 25 41 23 36 24 C32 32 24 37 14 36 C20 33 24 29 25 24 C17 21 9 22 2 26 Z"/>
+  </svg>
+  <div class="title">
+    <h1>Vogelspoor</h1>
+    <p>de GPS van je track, in je foto&rsquo;s</p>
+  </div>
+  <button id="btn-reset" class="ghost" title="Alles wissen en opnieuw beginnen">Opnieuw</button>
+</header>
+
+<main>
+  <section id="left">
+
+    <div class="drop-row">
+      <div class="drop-card" id="drop-gpx">
+        <svg viewBox="0 0 24 24" class="icon"><path d="M4 19 C7 13 9 9 12 9 C15 9 14 15 17 15 C19 15 20 12 21 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="4" cy="19" r="2.2"/><circle cx="21" cy="8" r="2.2"/></svg>
+        <div class="drop-text">
+          <strong id="gpx-title">GPX-track</strong>
+          <span id="gpx-sub">sleep hierheen of klik</span>
+        </div>
+      </div>
+      <div class="drop-card" id="drop-photos">
+        <svg viewBox="0 0 24 24" class="icon"><rect x="2.5" y="6" width="19" height="14" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 6 L9.5 3.5 H14.5 L16 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="13" r="4" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+        <div class="drop-text">
+          <strong id="photos-title">Foto&rsquo;s</strong>
+          <span id="photos-sub">sleep hierheen of klik &middot; <a id="pick-folder" href="#">hele map</a></span>
+        </div>
+      </div>
+    </div>
+
+    <div id="offset-box" class="panel hidden">
+      <div class="panel-title">Tijdcorrectie camera
+        <span class="hint" title="Loopt de klok van je camera voor of achter? Corrigeer dat hier. De correctie wordt bij de fototijd opgeteld.">?</span>
+      </div>
+      <div class="offset-controls">
+        <button data-off="-86400">&minus;1 d</button>
+        <button data-off="-3600">&minus;1 u</button>
+        <button data-off="-60">&minus;1 m</button>
+        <button data-off="-10">&minus;10 s</button>
+        <span id="offset-value">0:00:00</span>
+        <button data-off="10">+10 s</button>
+        <button data-off="60">+1 m</button>
+        <button data-off="3600">+1 u</button>
+        <button data-off="86400">+1 d</button>
+        <button id="offset-reset" class="ghost" title="Terug naar nul">reset</button>
+      </div>
+      <div id="suggestion" class="suggestion hidden">
+        <span id="suggestion-text"></span>
+        <button id="suggestion-apply">pas toe</button>
+      </div>
+    </div>
+
+    <div id="summary" class="summary hidden"></div>
+
+    <div id="select-bar" class="select-bar hidden">
+      <span id="select-count"></span>
+      <button id="btn-shift">&#128336; Tijd aanpassen</button>
+      <button id="btn-pin">&#128204; Prik op de kaart</button>
+      <button id="btn-clear-sel" class="ghost">wis</button>
+    </div>
+
+    <div id="shift-box" class="panel hidden">
+      <div class="panel-title">Opnametijd verschuiven van <span id="shift-count"></span> foto&rsquo;s
+        <span class="hint" title="Stond de datum of tijd van je camera verkeerd? Dit corrigeert de EXIF-tijd in de fotobestanden zelf. Negatieve waarden schuiven terug.">?</span>
+      </div>
+      <div class="shift-controls">
+        <label>dagen <input type="number" id="sh-d" value="0"></label>
+        <label>uren <input type="number" id="sh-h" value="0"></label>
+        <label>minuten <input type="number" id="sh-m" value="0"></label>
+        <label>seconden <input type="number" id="sh-s" value="0"></label>
+      </div>
+      <div class="shift-preview" id="shift-preview"></div>
+      <div class="shift-actions">
+        <button id="shift-apply" class="primary small">Pas aan</button>
+        <button id="shift-cancel" class="ghost">annuleer</button>
+      </div>
+    </div>
+
+    <div id="list-tools" class="list-tools hidden">
+      <a id="sel-all" href="#">alles selecteren</a> &middot; <a id="sel-none" href="#">niets selecteren</a>
+    </div>
+
+    <ul id="photo-list"></ul>
+
+    <div id="write-box" class="panel hidden">
+      <label class="check"><input type="checkbox" id="skip-existing" checked>
+        foto&rsquo;s die al GPS hebben overslaan</label>
+      <label class="check"><input type="checkbox" id="make-backup" checked>
+        eerst een backup maken (map &lsquo;vogelspoor-backup&rsquo; naast je foto&rsquo;s)</label>
+      <button id="btn-write" class="primary" disabled>Schrijf GPS naar foto&rsquo;s</button>
+      <div id="write-result" class="hidden"></div>
+    </div>
+
+  </section>
+
+  <section id="right">
+    <div id="map"></div>
+    <div id="map-empty">
+      <p>Laad een GPX-track of foto&rsquo;s om de kaart te zien</p>
+    </div>
+    <div id="pin-hint" class="hidden"></div>
+  </section>
+</main>
+
+<div id="drop-overlay" class="hidden"><div>Laat maar los!</div></div>
+<div id="busy" class="hidden"><div class="spinner"></div><span id="busy-text">Bezig&hellip;</span></div>
+
+<script src="leaflet/leaflet.js"></script>
+<script src="main.js"></script>
+</body>
+</html>
